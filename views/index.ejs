@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meter Reading Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00ff88;
+            --bg: #0a192f;
+            --card-bg: #172a45;
+            --text: #ccd6f6;
+            --text-light: #8892b0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--text);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin: 40px 0;
+            font-size: 2.5em;
+            letter-spacing: -1px;
+        }
+
+        form {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            max-width: 500px;
+            margin: 0 auto 40px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background: var(--primary);
+            color: var(--bg);
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 16px 24px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(0,255,136,0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        td {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-light);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        @media (max-width: 768px) {
+            form {
+                padding: 1.5rem;
+            }
+            
+            th, td {
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 Meter Reading Tracker</h1>
+        
+        <form id="readingForm">
+            <label for="reading">Enter Current Reading</label>
+            <input type="number" id="reading" required>
+            <button type="submit">
+                <i class="fas fa-plus-circle"></i> Add Reading
+            </button>
+        </form>
+
+        <h2>📅 Past Readings</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Reading</th>
+                    <th>Units Used</th>
+                    <th>Bill</th>
+                </tr>
+            </thead>
+            <tbody id="recordsTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Theme Toggle
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            body.classList.add('light-mode');
+            themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+
+        // Form Submission
+        document.getElementById("readingForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            let reading = parseFloat(document.getElementById("reading").value);
+
+            fetch("/add_reading", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ current_reading: reading })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(`Reading Added!\nUnits Used: ${data.units_used}\nBill: ₹${data.bill_amount}`);
+                location.reload();
+            });
+        });
+
+        // Load Data
+        function loadData() {
+            fetch("/get_data")
+            .then(response => response.json())
+            .then(data => {
+                let table = document.getElementById("recordsTable");
+                table.innerHTML = "";
+                data.records.forEach(record => {
+                    let date = new Date(record.timestamp);
+                    let formattedDate = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    let row = `<tr>
+                        <td>${formattedDate}</td>
+                        <td>${record.reading}</td>
+                        <td>${record.units_used}</td>
+                        <td>₹${record.bill}</td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
